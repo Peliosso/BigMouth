@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 const app = express();
 app.use(bodyParser.json());
 
-const token = "7868496036:AAHlVbZx8sH--kOQ7wU7xc2UOPcwGrjbu_Y";
+const token = "7964468262:AAFWpwQ0stF5cNX6ZDO_1T7aBljKyib-B7E";
 const apiURL = `https://api.telegram.org/bot${token}/`;
 
 app.post("/", async (req, res) => {
