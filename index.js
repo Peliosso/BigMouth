@@ -1,3 +1,119 @@
+const express = require("express");
+const axios = require("axios");
+const bodyParser = require("body-parser");
+
+const app = express();
+app.use(bodyParser.json());
+
+const token = "7868496036:AAHlVbZx8sH--kOQ7wU7xc2UOPcwGrjbu_Y";
+const apiURL = `https://api.telegram.org/bot${token}/`;
+
+app.post("/", async (req, res) => {
+  const update = req.body;
+
+  if (!update.message || !update.message.text) return res.sendStatus(200);
+
+  const chat_id = update.message.chat.id;
+  const text = update.message.text.toLowerCase();
+
+  const sendMessage = async (msg) => {
+    await axios.post(`${apiURL}sendMessage`, {
+      chat_id,
+      text: msg,
+      parse_mode: "Markdown",
+    });
+  };
+
+  const editMessage = async (msg_id, texto) => {
+    await axios.post(`${apiURL}editMessageText`, {
+      chat_id,
+      message_id: msg_id,
+      text: texto,
+      parse_mode: "Markdown",
+    });
+  };
+
+  const enviarConsultando = async () => {
+    const res = await axios.post(`${apiURL}sendMessage`, {
+      chat_id,
+      text: "🔍 *Consultando, por favor aguarde...*",
+      parse_mode: "Markdown",
+    });
+    return res.data.result.message_id;
+  };
+
+  if (text.startsWith("/cpf")) {
+    const cpf = text.replace("/cpf", "").replace(/\D/g, "");
+
+    if (cpf.length === 11) {
+      const msg_id = await enviarConsultando();
+      const url = `http://apidb.servehttp.com/api/cpfcredilink?Access-Key=pladix&cpf=${cpf}`;
+      const { data } = await axios.get(url);
+
+      if (data?.status === 200 && data?.dados?.dados_basicos) {
+        const info = data.dados.dados_basicos;
+        const msg = `✅ *Resultado da Consulta por CPF:*\n\n` +
+                    `• *Nome:* ${info.nome}\n` +
+                    `• *CPF:* ${info.cpf}\n` +
+                    `• *Nascimento:* ${info.dt_nascimento}\n` +
+                    `• *Sexo:* ${info.sexo}\n` +
+                    `• *Situação:* ${info.status_receita_federal}`;
+        await editMessage(msg_id, msg);
+      } else {
+        await editMessage(msg_id, "❌ *CPF não encontrado ou inválido.*");
+      }
+    } else {
+      await sendMessage("⚠️ CPF inválido. Use o formato: /cpf 00000000000");
+    }
+
+  } else if (text.startsWith("/nome")) {
+    const nome = text.replace("/nome", "").trim();
+
+    if (nome.length >= 5) {
+      const msg_id = await enviarConsultando();
+      const url = `http://apidb.servehttp.com/api/nomecredilink?Access-Key=pladix&nome=${encodeURIComponent(nome)}`;
+      const { data } = await axios.get(url);
+
+      if (data?.status === 200 && data?.dados?.length > 0) {
+        const info = data.dados[0];
+        const msg = `✅ *Resultado da Consulta por Nome:*\n\n` +
+                    `• *Nome:* ${info.nome}\n` +
+                    `• *CPF:* ${info.cpf}\n` +
+                    `• *Nascimento:* ${info.nasc}\n` +
+                    `• *Sexo:* ${info.sexo}\n` +
+                    `• *Situação:* ${info.situacao_rf}`;
+        await editMessage(msg_id, msg);
+      } else {
+        await editMessage(msg_id, "❌ *Nome não encontrado ou inválido.*");
+      }
+    } else {
+      await sendMessage("⚠️ Nome muito curto. Use: /nome Nome completo");
+    }
+
+  } else if (text === "/start" || text === "/menu") {
+    const reply_markup = {
+      inline_keyboard: [
+        [{ text: "🔎 Consultar CPF", switch_inline_query_current_chat: "/cpf " }],
+        [{ text: "👤 Consultar Nome", switch_inline_query_current_chat: "/nome " }],
+      ],
+    };
+
+    await axios.post(`${apiURL}sendMessage`, {
+      chat_id,
+      text: "👋 *Bem-vindo ao Bot de Consultas!*\n\nEscolha uma opção abaixo:",
+      parse_mode: "Markdown",
+      reply_markup,
+    });
+
+  } else {
+    await sendMessage("❓ Comando não reconhecido. Use /menu para ver as opções.");
+  }
+
+  res.sendStatus(200);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Bot rodando na porta ${PORT}`));
 <?php
 $token = "7868496036:AAHlVbZx8sH--kOQ7wU7xc2UOPcwGrjbu_Y";
 $apiURL = "https://api.telegram.org/bot$token/";
